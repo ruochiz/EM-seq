@@ -40,7 +40,7 @@ process mapping {
     fastq_barcode=$(zcat -f '!{fq_set.insert_read1}' | head -n 1 | sed -r 's/.*://')
 
     if [[ "${inst_name:0:2}" == 'A0' || "${inst_name:0:2}" == 'NS' || \
-       [[ "${inst_name:0:2}" == 'NB' || "${inst_name:0:2}" == 'VH' || "${inst_name: -2:2}" == 'NX' ]] ; then
+        "${inst_name:0:2}" == 'NB' || "${inst_name:0:2}" == 'VH' || "${inst_name: -2:2}" == 'NX' ]] ; then
        trim_polyg='--trim_poly_g'
        echo '2-color instrument: poly-g trim mode on'
     else
@@ -48,11 +48,12 @@ process mapping {
     fi
     seqtk mergepe <(zcat -f "!{fq_set.insert_read1}") <(zcat -f "!{fq_set.insert_read2}") \
     | fastp --stdin --stdout -l 2 -Q ${trim_polyg} --interleaved_in --overrepresentation_analysis \
-            -j "!{fq_set.library}_fastp.json" 2> fastp.stderr \
-    | bwameth.py -p -t !{task.cpus} --read-group "@RG\\tID:${fastq_barcode}\\tSM:!{fq_set.library}" --reference !{genome} /dev/stdin \
+            -j "!{fq_set.library}_fastp.json" 2> fastp.stderr > fastp_out.fq
+    bwameth.py -p -t !{task.cpus} --read-group "@RG\\tID:${fastq_barcode}\\tSM:!{fq_set.library}" --reference !{genome} fastp_out.fq \
                  2>  "!{fq_set.library}_${fastq_barcode}!{fq_set.flowcell}_!{fq_set.lane}_!{fq_set.tile}.log.bwamem" \
     | mark-nonconverted-reads.py 2> "!{fq_set.library}_${fastq_barcode}_!{fq_set.flowcell}_!{fq_set.lane}_!{fq_set.tile}.nonconverted.tsv" \
     | sambamba view -t 2 -S -f bam -o "!{fq_set.library}_${fastq_barcode}_!{fq_set.flowcell}_!{fq_set.lane}_!{fq_set.tile}.aln.bam" /dev/stdin 2> sambamba.stderr;
+    rm -rvf fastp_out.fq
     '''
 
 }
